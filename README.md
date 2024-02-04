@@ -7,7 +7,7 @@ using **JSONata**. Ability to create sensors in **Home Assistant** for agile pri
 
 ![node-red-flow](/images/NodeRedFlow20240201.png)
 
->![NOTE]
+>[!NOTE]
 > I don't use Octopus Agile myself, so this was formed out of personal interest rather than necessity. It does work, but it is a *learning example* rather than active home automation forged in the white heat of real need.
 
 ### What this Node-RED flow does
@@ -37,6 +37,12 @@ This flow will trigger once every day to:
 
 ## Prerequisites
 
+> [!NOTE]  
+> If you are not comfortable running Node-RED then please do not attempt to use this code!
+
+> [!WARNING]
+> This code uses JSONata throughout rather than function nodes and JavaScript. JSONata is a declarative-functional language. This may require more time and effort to understand, modify and debug the code *should you wish to make changes*.
+
 <details>
 <summary> Installation requirements </summary>
 
@@ -45,12 +51,6 @@ This is a **Node-RED** flow, written to run in Node-RED alongside Home Assistant
 - The API call _references_ for your own or chosen Agile tariff and pricing area
 - The [WebSocket nodes](https://github.com/zachowj/node-red-contrib-home-assistant-websocket) installed and their HA server configuration working correctly
 - Additional palette nodes for the scheduler - [cron-plus](https://flows.nodered.org/node/node-red-contrib-cron-plus)
-
-> [!NOTE]  
-> If you are not comfortable running Node-RED then please do not attempt to use this code!
-
-> [!WARNING]
-> This code uses JSONata throughout rather than function nodes and JavaScript. JSONata is a declarative-functional language. This may require more time and effort to understand, modify and debug the code *should you wish to make changes*.
 
 </details>
 
@@ -72,7 +72,6 @@ The key elements in this are the tariff name **AGILE-22-08-31** which is the mos
 
 Every day, reliably around 16:00 local time, Octopus publish the next set of records by adding to the end of the tariff file. The records are for each 30 minute period, starting at the hour and the half-hour. Thus the file grows by 48 records every day. Tariffs are published using UTC time only. They are priced on the European market, so issued from CET midnight, and therefore run from 23:00 today to 23:00 tomorrow UK time. For the sake of my sanity, each daily set will be called 'today' and 'tomorrow', with the 'tomorrow' set including the two records 23:00-23:30 and 23:30-00:00 from today.
 
-> [!TIP]
 > The flow maintains only the most recently published 96 records - hence this should always be the full set of 'yesterday' and 'today' up to around 16:00, and the full set for 'today' and 'tomorrow' after 16:00.
 
 ### Daily and half-hourly updates
@@ -87,11 +86,11 @@ At each daily update, the set of best price periods, contiguous best periods, an
 
 As is standard, the Node-RED flow is contained within a JSON file. The file contents can be copied, and imported using the usual Node-RED import from clipboard facility.
 
-<details>
-<summary> Installing the Node-RED code </summary>
-
 > [!TIP]
 > If you are updating from an earlier version, then please disable all the flow entity sensor nodes and their corresponding sensor configuration nodes first! This 'shuts down' the old flow and reduces the risk of potential conflict! You may well see warning messages that you are importing nodes that already exist!
+
+<details>
+<summary> Installing the Node-RED code </summary>
 
 > To *fully* avoid potential issues with an update, it can be worth taking a full backup of your existing flow, disabling the sensor and sensor-configuration nodes, redeploying and restarting Home Assistant and Node-RED, so as to remove the existing entity registrations in Home Assistant first. Then deleting the existing flow entirely before import, so as to prevent duplication of the sensor or configuration nodes with the problems this can generate.
 
@@ -117,6 +116,9 @@ If you are using Octopus Agile, then you can obtain your product code and region
 
 As good practice, the Home Assistant WebSocket nodes have been [scrubbed](https://zachowj.github.io/node-red-contrib-home-assistant-websocket/scrubber/) of their Home Assistant service configuration details, and *additionally disabled*. **You will need to edit these nodes, *and* the node configuration node behind each one, *and possibly the Home Assistant server configuration node itself.***
 
+> [!IMPORTANT]  
+> As a *minimum*, you will need to edit the sensor configuration nodes, at least to update and redeploy, in order to reconnect these configuration nodes with *your* default homeassistant server.
+
 <details>
 <summary> Connecting to Home Assistant </summary>
 
@@ -133,9 +135,6 @@ In full detail:
     - if you *do not* have a working HomeAssistant server, use the *Add new server...* option and set up the server
     - if you do have a working HomeAssistant server, ensure this is correctly selected in the *Server* entry field
   - update the *server* node, the *ha-entity-config* node, and finally save the *sensor* node and redeploy the flow
-
-> [!IMPORTANT]  
-> As a *minimum*, you will need to edit the sensor configuration nodes, at least to update and redeploy, in order to reconnect these configuration nodes with *your* default homeassistant server.
 
 ![configuration-setup](/images/configsetup.png)
 
@@ -168,7 +167,6 @@ Octopus provide all Agile tariffs with times based on UTC. For the UK this is th
 
 Daylight Saving Time (DST) is calculated using the European / UK rule of 01:00 UTC on the last Sunday in March and in October. This information is held in context, refreshed for each new year, and updated on every API update.
 
-> [!CAUTION]
 > DST changes and using 'local time' rather than UTC can give rise to timing issues. Whilst this flow provides UTC, local time, and DST change information, and has been successfully tested over BST to GMT transition, care should be taken when using local time rather than UTC, and when dealing with periods that span over DST time changes.
 
 </details>
@@ -320,18 +318,16 @@ The *event* attribute fields are only set for each *schedule* trigger. These val
 
 The *array* attribute field is set for any Node-RED restart, flow update, or schedule trigger, and will contain all of the current dynamic schedules held in the cron-plus node.
 
-> [!NOTE]  
 > The cron-plus node is set for *persistent* dynamic schedules, so these are saved to file and recovered after a Node-RED restart. The dynamic schedules are normally only updated *once* each day when the API call updates. At this point, used and expired schedules are first deleted from the node, then the newly created schedules for the *next* day are added, then the schedule array is read and saved to context. At any *schedule trigger*, the saved schedule array is read back from context for the sensor attribute. The sensor array may therefore contain a mix of expired, current, and future schedules.
+
+</details>
 
 > [!WARNING]
 > The code will attempt to recover an 'in-flight' schedule when *restarting* the flow for any reason. If the most recently used and expired schedule was for an "ON" event, **then this will be re-issued and the sensor turned on**. If the expired schedules have been removed, but the *next pending* schedule is for "OFF" with a *currently active time period*, then an "ON" schedule will be regenerated and **used to turn the sensor on for the remainder of the current schedule period**.
 
-</details>
-
 ### Flow parameters
 
 Where possible flow parameters are exposed in easy to change settings, in the Change node just before the appropriate JSONata code. The 15 best sample size, and the 10 binary sensor sub-sample size can both be easily changed.
-
 
 ## Display
 
@@ -502,7 +498,6 @@ columns:
 <summary> Binary Sensor - schedule table </summary>
 
 ![binary schedule table](/images/binary_schedule_table.png)
-
 
 This table is formed from the cron-plus dynamic schedules, written as an array to context store following the daily API call update, which is then read back into the sensor attribute at each schedule or update trigger. It is therefore an *historic* record of the actual schedules held in the cron-plus node.
 
@@ -726,8 +721,6 @@ Is a very different language, so if you are looking to either understand the cod
 The JSONata documentation can be found [here](https://docs.jsonata.org/overview.html)
 
 There is a great [sandbox](https://try.jsonata.org/) which I use for all my development work.
-
-
 
 ## Buy me a coff*ee*?
 
