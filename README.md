@@ -84,17 +84,18 @@ At each daily update, the set of best price periods, contiguous best periods, an
 As is standard, the Node-RED flow is contained within a JSON file. The file contents can be copied, and imported using the usual Node-RED import from clipboard facility.
 
 > [!TIP]
-> If you are updating from an earlier version, then please disable all the flow entity sensor nodes and their corresponding sensor configuration nodes first! This 'shuts down' the old flow and reduces the risk of potential conflict! You may well see warning messages that you are importing nodes that already exist!
+> If you are updating from an earlier version, then I suggest that you disable all the flow entity sensor nodes and their corresponding sensor configuration nodes first! This 'shuts down' the old flow and reduces the risk of potential conflict! You may well see warning messages that you are importing nodes that already exist!
 
 <details>
 <summary> Installing the Node-RED code </summary>
 
-> To *fully* avoid potential issues with an update, it can be worth taking a full backup of your existing flow, disabling the sensor and sensor-configuration nodes, redeploying and restarting Home Assistant and Node-RED, so as to remove the existing entity registrations in Home Assistant first. Then deleting the existing flow entirely before import, so as to prevent duplication of the sensor or configuration nodes with the problems this can generate.
+> To further avoid potential issues with an update, it can be worth taking a full backup of your existing flow, disabling the sensor and sensor-configuration nodes, redeploying and restarting Home Assistant and Node-RED, so as to remove the existing entity registrations in Home Assistant first. Then deleting the existing flow entirely before import, so as to prevent duplication of the sensor or configuration nodes and the problems this can generate.
 
 - Copy the Node-RED flow (see the release file). In Node-RED go to the hamburger menu, select ‘import’, paste the flow, and import.
 
-- Deploy and test that the API calls work by manually triggering the Inject node and checking that the context is updated with saved variables.
 - Add any missing nodes to your palette. You will need [node-red-contrib-cron-plus](https://flows.nodered.org/node/node-red-contrib-cron-plus) to run the binary sensor schedules.
+
+- Deploy and test that the API calls work by manually triggering the Inject node and checking that the context is updated with saved variables.
 
 </details>
 
@@ -131,7 +132,7 @@ In full detail:
   - check the *Server* entry - this should be HomeAssistant or similar
     - if you *do not* have a working HomeAssistant server, use the *Add new server...* option and set up the server
     - if you do have a working HomeAssistant server, ensure this is correctly selected in the *Server* entry field
-  - update the *server* node, the *ha-entity-config* node, and finally save the *sensor* node and redeploy the flow
+  - update the *server* node, the *ha-entity-config* node, and finally save the *sensor* node and redeploy the flow once you have updated all the sensor nodes
 
 ![configuration-setup](/images/configsetup.png)
 
@@ -223,14 +224,14 @@ The period position will be 'only' for single isolated periods, and 'start', the
 
 Holds an object with arrays for import, export, and both with the best concurrent periods, and fields for 'today' and 'tomorrow'.
 
-The best 15 sampled periods are grouped to provide just consecutive time-blocks, thereby reducing the number of on-off switching required. Each block contains:
+The best 15 sampled periods are extracted to provide just *consecutive* time-blocks, thereby reducing the number of on-off switching required. Each block contains:
 
 - mode (import / export)
-- original best period sample size
+- original best period sample size (15)
 - year-month-day reference to distinguish day-sets
-- sequence of the block in each day
-- range, showing the original sample from-to index
-- from start and upto end timestamps in UTC
+- sequence of the contiguous block in each day
+- range, showing the original sample from-to indexes
+- from (start) and upto (end) timestamps in UTC
 - separate date, time from and time to
 - local time from and to
 - ISO format local time from and to
@@ -243,13 +244,13 @@ The best 15 sampled periods are grouped to provide just consecutive time-blocks,
 
 At each API update, a reduced selection of 10 of the 15 best periods are taken from the import best periods array and used 'as is' without blocking.
 
-This reduced array is checked for concurrent periods, and a set of on and off time schedules are created. For a selection of 10 half-hour periods, this will provide the lowest import cost for five hours during a set tariff 'day'.
+This reduced array is checked for concurrent periods, and a minimal set of on and off time schedules are created. For a selection of 10 half-hour periods, this will provide the lowest import cost for five hours during a set tariff 'day'.
 
-The scheduling is carried out using a cron-plus node, which is given the necessary dynamic schedules, created at each API update. Dynamic schedules are held until used, so schedules from 'yesterday' can still remain when the new schedules for 'tomorrow' are added.
+The scheduling is carried out using a cron-plus node, which is programmed with the necessary dynamic schedules, created at each API update. Dynamic schedules are held until used and subsequently deleted, so schedules from 'today' can still remain when the new schedules for 'tomorrow' are added.
 
-At API update, a status command request is used to read out the retained schedule table, and this is stored into the OctAgileInBin context variable. It is read back when each schedule event is triggered, so as to be able to add the full schedule array back into a Binary Sensor attribute variable.
+At API update, a status command request is used to read out the retained dynamic schedule table, and this output is stored into the OctAgileInBin context variable. It is read back from context when each schedule event is triggered, so as to be able to add the full schedule array back into the Binary Sensor attribute 'array' variable.
 
-The array objects contain cron-plus scheduling configuration and status data, which is of little practical use. However the important full schedule array can be extracted from the array config.payload field.
+The status array objects contain cron-plus scheduling configuration and status data, which is of little practical use. However the important full schedule array is extracted from the array config.payload field.
 
 </details>
 
@@ -264,7 +265,7 @@ The *state value* is the UTC timestamp string for the current agile period start
 
 Attribute fields hold:
 
-- a reduced copy of the 96 entry tariff array
+- a reduced (fields removed) copy of the 96 entry tariff array
 - values for import and for export prices for the current period
 - values for import and for export prices for the next period
 - a count of the number of forward periods remaining in the tariff array
@@ -290,7 +291,7 @@ Attribute fields hold:
 - the bid-offer spread value, as the difference between the lowest import period average price 'tomorrow' and the highest export period average price 'tomorrow'
 - the year-month-date reference for 'today' and for 'tomorrow'
 
-This sensor is updated only when the API calls update the tariff array, which should be once per day. Note that, since the sequence array can continue to hold future periods for 'today' as well as 'tomorrow' after update, the state value count applies *only* to the most recent day.
+This sensor is updated only when the API calls update the tariff array, which should be once per day. Note that, since the sequence array can continue to hold future periods for 'today' as well as 'tomorrow' after update, the state value count applies *only* to the most recent day-set.
 
 </details>
 
@@ -305,13 +306,13 @@ The *state value* is a binary `true` or `false` and is switched according to a s
 
 The code permits an adjustment period (here 25 seconds) which is added to the start time and subtracted from the stop time to avoid switching on the exact hour. This can be adjusted or removed as required.
 
-This sensor is updated at each schedule 'on' or 'off' trigger time, and *also* at each API update, as well as at Node-RED or flow restarts and deployments.
+This sensor is updated at each schedule 'on' or 'off' trigger time, and *also* at each API update, *as well as* at Node-RED or flow restarts and deployments.
 
 Attribute fields will hold:
 
-- the event reference "20240203-1/2=ON" combining the year-month-day with the event/sequence total and the switch action
-- time on and time off as UTC timestamps
-- duration in minutes
+- the event reference "20240203-1/2" combining the year-month-day with the event out of sequence total
+- time on and time off as ISO timestamps
+- switching period duration in minutes
 - average price over the period
 - array of stored binary schedules
 
@@ -329,6 +330,8 @@ The *array* attribute field is set for any Node-RED restart, flow update, or sch
 ### Flow parameters
 
 Where possible flow parameters are exposed in easy to change settings, in the Change node just before the appropriate JSONata code. The 15 best sample size, and the 10 binary sensor sub-sample size can both be easily changed.
+
+The context store read and writes are all performed in Change nodes. This facilitates more easily selecting a different store to 'default' if you have multiple context stores.
 
 ## Display
 
