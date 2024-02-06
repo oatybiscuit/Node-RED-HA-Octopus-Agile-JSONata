@@ -1,0 +1,145 @@
+type: custom:apexcharts-card
+header:
+  show: true
+  title: Octopus Agile Prices
+show:
+  last_updated: true
+now:
+  show: false
+  label: now
+graph_span: 48h
+span:
+  start: day
+  offset: '-1h'
+series:
+  - entity: sensor.octopus_agile_prices
+    data_generator: |
+      let prices = entity.attributes.array;
+      let ends = prices.length-1;
+      let final = prices.map((item, index) => {
+        return [item.from, item.import];
+      });
+      final.push([prices[ends].upto, prices[ends].import]);
+      return final;
+    curve: stepline
+    name: Import
+    show:
+      legend_value: false
+      extremas: true
+    stroke_width: 2
+    color: red
+  - entity: sensor.octopus_agile_prices
+    data_generator: |
+      let prices = entity.attributes.array;
+      let ends = prices.length-1;
+      let final = prices.map((item, index) => {
+        return [item.from, item.export];
+      });
+      final.push([prices[ends].upto, prices[ends].export]);
+      return final;
+    curve: stepline
+    name: Export
+    show:
+      legend_value: false
+      extremas: true
+    stroke_width: 2
+    color: green
+  - entity: sensor.octopus_agile_sequence_table
+    data_generator: |
+      let prices = entity.attributes.import_array;
+      let final = [];
+      let i=0;
+      let j=0;
+      final[j]=[start, -12];
+      j++;
+      for (i=0; i<prices.length; i++){
+        final[j] = [prices[i].from, prices[i].average];
+        final[j+1] = [prices[i].upto, -12];
+        j=j+2;
+      };
+      final[j]=[end, -12];
+      return final;
+    curve: stepline
+    name: Low Import
+    stroke_width: 1
+    color: purple
+    show:
+      legend_value: false
+  - entity: sensor.octopus_agile_sequence_table
+    data_generator: |
+      let prices = entity.attributes.export_array;
+      let final = [];
+      let i=0;
+      let j=0;
+      final[j]=[start, -12];
+      j++;
+      for (i=0; i<prices.length; i++){
+        final[j] = [prices[i].from, prices[i].average];
+        final[j+1] = [prices[i].upto, -12];
+        j=j+2;
+      };
+      final[j]=[end, -12];
+      return final;
+    curve: stepline
+    name: High Export
+    stroke_width: 1
+    color: blue
+    show:
+      legend_value: false
+apex_config:
+  annotations:
+    yaxis:
+      - 'y': 15
+        borderColor: green
+        label:
+          text: EX
+          borderWidth: 0
+          style:
+            background: '#0000'
+      - 'y': 28.12
+        borderColor: red
+        label:
+          text: IN
+          borderWidth: 0
+          style:
+            background: '#0000'
+    xaxis:
+      - x: EVAL:new Date().setHours(16,0,0)
+        x2: EVAL:new Date().setHours(19,0,0)
+        fillColor: '#FEB019'
+        label:
+          text: Peak
+          borderWidth: 0
+          style:
+            background: '#0000'
+      - x: EVAL:new Date().setHours(2,0,0)
+        x2: EVAL:new Date().setHours(5,0,0)
+        fillColor: '#B3F7CA'
+        label:
+          text: Cheap
+          borderWidth: 0
+          style:
+            background: '#0000'
+      - x: EVAL:new Date(Date.now()+86400000).setHours(16,0,0)
+        x2: EVAL:new Date(Date.now()+86400000).setHours(19,0,0)
+        fillColor: '#FEB019'
+        label:
+          text: Peak
+          borderWidth: 0
+          style:
+            background: '#0000'
+      - x: EVAL:new Date(Date.now()+86400000).setHours(2,0,0)
+        x2: EVAL:new Date(Date.now()+86400000).setHours(5,0,0)
+        fillColor: '#B3F7CA'
+        label:
+          text: Cheap
+          borderWidth: 0
+          style:
+            background: '#0000'
+      - x: EVAL:Math.floor(Date.now()/1800000)*1800000
+        label:
+          text: Now
+          position: bottom
+          borderWidth: 1
+yaxis:
+  - min: -10

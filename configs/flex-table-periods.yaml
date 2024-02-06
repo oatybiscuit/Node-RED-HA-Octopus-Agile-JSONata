@@ -1,0 +1,36 @@
+type: custom:flex-table-card
+title: Octopus Agile Period
+entities:
+  include: sensor.octopus_agile_sequence_table
+columns:
+  - data: both_array
+    modify: x.mode.substr(0,3)
+    name: Md
+  - data: both_array
+    modify: |-
+      let blk=x.ymd;
+      const dt=new Date();
+      const yyyy=dt.getFullYear();
+      let dd = dt.getDate();
+      let mm = dt.getMonth() +1;
+      if (mm < 10) mm = '0' + mm;
+      if (dd < 10) dd = '0' + dd;
+      let test = yyyy + mm + dd;
+      if (test==blk) {"*"} else if (test<blk) {"+"} else {"-"};
+    name: D
+  - data: both_array
+    modify: >-
+      (new Date(x.from)).toLocaleString("en-GB", {day:"2-digit", month:"short",
+      hour:"2-digit", minute:"2-digit", timeZoneName:"short"})
+    name: Start
+  - data: both_array
+    modify: >-
+      (new Date(x.upto)).toLocaleString("en-GB", {day:"2-digit", month:"short",
+      hour:"2-digit", minute:"2-digit", timeZoneName:"short"})
+    name: Stop
+  - data: both_array
+    modify: x.duration
+    name: Mins
+  - data: both_array
+    modify: x.average
+    name: Price (p)

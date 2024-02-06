@@ -1,0 +1,44 @@
+type: entities
+entities:
+  - entity: sensor.octopus_agile_prices
+    name: Time period
+    secondary_info: last-updated
+    icon: mdi:av-timer
+  - type: attribute
+    entity: sensor.octopus_agile_prices
+    attribute: periods_left
+    name: Periods Left in array
+  - type: attribute
+    entity: sensor.octopus_agile_prices
+    attribute: import
+    name: Import Price - now
+    suffix: p
+    icon: mdi:currency-gbp
+  - type: attribute
+    entity: sensor.octopus_agile_prices
+    attribute: import_next
+    name: Import Price - next
+    suffix: p
+    icon: mdi:currency-gbp
+  - type: attribute
+    entity: sensor.octopus_agile_prices
+    attribute: export
+    name: Export Price - now
+    suffix: p
+    icon: mdi:currency-gbp
+  - type: attribute
+    entity: sensor.octopus_agile_prices
+    attribute: export_next
+    name: Export Price - next
+    suffix: p
+    icon: mdi:currency-gbp
+  - type: divider
+  - type: attribute
+    entity: sensor.octopus_agile_sequence_table
+    attribute: bid_offer_spread
+    name: Best bid-offer
+    suffix: p
+    icon: mdi:basket
+title: Octopus Agile
+show_header_toggle: false
+state_color: false

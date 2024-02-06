@@ -37,11 +37,8 @@ This flow will trigger once every day to:
 
 ## Prerequisites
 
-> [!NOTE]  
-> If you are not comfortable running Node-RED then please do not attempt to use this code!
-
 > [!WARNING]
-> This code uses JSONata throughout rather than function nodes and JavaScript. JSONata is a declarative-functional language. This may require more time and effort to understand, modify and debug the code *should you wish to make changes*.
+> If you are not comfortable running Node-RED then please do not attempt to use this code! This code uses JSONata throughout rather than function nodes and JavaScript. JSONata is a declarative-functional language. This may require more time and effort to understand, modify and debug the code *should you wish to make changes*.
 
 <details>
 <summary> Installation requirements </summary>
@@ -302,7 +299,11 @@ This sensor is updated only when the API calls update the tariff array, which sh
 <details>
 <summary> Octopus Agile Import Binary </summary>
 
-The *state value* is a binary `true` or `false` and is switched according to a schedule of 'on' and 'off' times from the best 10 import periods for each day.
+The *state value* is a binary `true` or `false` and is switched according to a schedule of 'on' and 'off' times from the 10 best import periods for each day.
+
+![binary switch](/images/binary-switch.png)
+
+The code permits an adjustment period (here 25 seconds) which is added to the start time and subtracted from the stop time to avoid switching on the exact hour. This can be adjusted or removed as required.
 
 This sensor is updated at each schedule 'on' or 'off' trigger time, and *also* at each API update, as well as at Node-RED or flow restarts and deployments.
 

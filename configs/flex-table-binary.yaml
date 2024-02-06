@@ -1,0 +1,30 @@
+type: custom:flex-table-card
+title: Octopus Agile Binary Switch Schedule
+entities:
+  include: binary_sensor.octopus_agile_import_binary
+columns:
+  - data: array
+    modify: x.event.substring(9,12)
+    name: Id
+  - data: array
+    modify: >-
+      const don = new Date(x.timeon); const dof = new Date(x.timeoff); const dat
+      = new Date(); if (dat>=don && dat<dof) {">"} else if (dat<=don) {"+"} else
+      if (x.active) {"-"} else {""};
+    name: X
+  - data: array
+    modify: >-
+      (new Date(x.timeon)).toLocaleString("en-GB", {day:"2-digit",
+      month:"short", hour:"2-digit", minute:"2-digit", timeZoneName:"short"})
+    name: 'On'
+  - data: array
+    modify: >-
+      (new Date(x.timeoff)).toLocaleString("en-GB", {day:"2-digit",
+      month:"short", hour:"2-digit", minute:"2-digit", timeZoneName:"short"})
+    name: 'Off'
+  - data: array
+    modify: x.duration
+    name: Mins
+  - data: array
+    modify: if(x.average) {x.average} else {""}
+    name: Price (p)

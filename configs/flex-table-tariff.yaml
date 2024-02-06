@@ -1,0 +1,28 @@
+type: custom:flex-table-card
+strict: true
+title: Octopus Agile Rates
+entities:
+  include: sensor.octopus_agile_prices
+columns:
+  - data: array
+    modify: >-
+      (new Date(x.from)).toLocaleString("en-GB", {day:"2-digit", month:"short",
+      hour:"2-digit", minute:"2-digit", timeZoneName:"short"})
+    name: Start Time (local)
+  - data: array
+    modify: |-
+      let disp=(new Date(x.from) > new Date());
+      if (disp) 'yes';
+    name: TEST
+    hidden: true
+  - data: array
+    modify: x.export
+    name: Export
+  - data: array
+    modify: |-
+      let val=x.import;
+      let cr="f0a0a0";
+      if   (val<15) cr="a0f0a0";
+      else if (val<25) cr="f0f0a0";
+      '<div style="background-color: #' + cr + ';">' + val + '</div>';
+    name: Import
