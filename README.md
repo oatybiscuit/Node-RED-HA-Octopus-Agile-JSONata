@@ -2,7 +2,8 @@
 
 [![License: MIT](https://img.shields.io/github/license/oatybiscuit/node-red-ha-octopus-agile-jsonata)](LICENSE.md)
 
-A **Node-RED** flow to read, process, and store into context variables, **Octopus Agile Tariff Prices** 
+A **Node-RED** flow to read, process, and store into context variables, **Octopus Agile Tariff Prices**
+
 using **JSONata**. Ability to create sensors in **Home Assistant** for agile prices, best periods, and a binary switch, with potential to use and display these in graph and table format.
 
 ![node-red-flow](/images/NodeRedFlow20240201.png)
@@ -10,14 +11,14 @@ using **JSONata**. Ability to create sensors in **Home Assistant** for agile pri
 >[!NOTE]
 > I don't use Octopus Agile myself, so this was formed out of personal interest rather than necessity. It does work, but it is a *learning example* rather than active home automation forged in the white heat of real need.
 
-### What this Node-RED flow does
+## What this Node-RED flow does
 
 <details>
 <summary> Flow action </summary>
 
 This flow will trigger once every day to:
 
-- Read Octopus agile _import_ and also agile _export_ tariffs for the most recent 48 hours (96 records)
+- Read Octopus agile *import* and also agile *export* tariffs for the most recent 48 hours (96 records)
   - merge both import and export tariffs into one array
   - save this tariff array to flow context
   - provide an HA sensor with the current and next prices, updated every half hour
@@ -44,8 +45,9 @@ This flow will trigger once every day to:
 <summary> Installation requirements </summary>
 
 This is a **Node-RED** flow, written to run in Node-RED alongside Home Assistant. You will need:
+
 - **Node-RED**, ideally running as a [Home Assistant add-on](https://github.com/hassio-addons/addon-node-red#readme)
-- The API call _references_ for your own or chosen Agile tariff and pricing area
+- The API call *references* for your own or chosen Agile tariff and pricing area
 - The [WebSocket nodes](https://github.com/zachowj/node-red-contrib-home-assistant-websocket) installed and their HA server configuration working correctly
 - Additional palette nodes for the scheduler - [cron-plus](https://flows.nodered.org/node/node-red-contrib-cron-plus)
 
@@ -63,7 +65,6 @@ You can find out more about [Octopus Energy API Documentation - Agile](https://d
 The API call I am currently using is:
 
  `https://api.octopus.energy/v1/products/AGILE-22-08-31/electricity-tariffs/E-1R-AGILE-22-08-31-L/standard-unit-rates/?page_size=96`
-
 
 The key elements in this are the tariff name **AGILE-22-08-31** which is the most recent offering. Other Agile tariff products are available. The **L** is for *my* region (South-West) here in the UK. The [regions are explained in detail here](https://www.energy-stats.uk/dno-region-codes-explained/)!
 
@@ -91,7 +92,7 @@ As is standard, the Node-RED flow is contained within a JSON file. The file cont
 
 > To further avoid potential issues with an update, it can be worth taking a full backup of your existing flow, disabling the sensor and sensor-configuration nodes, redeploying and restarting Home Assistant and Node-RED, so as to remove the existing entity registrations in Home Assistant first. Then deleting the existing flow entirely before import, so as to prevent duplication of the sensor or configuration nodes and the problems this can generate.
 
-- Copy the Node-RED flow (see the release file). In Node-RED go to the hamburger menu, select ‘import’, paste the flow, and import.
+- Save the Node-RED flow (see the release file). In Node-RED go to the hamburger menu, select ‘import’, and import the JSON flow file.
 
 - Add any missing nodes to your palette. You will need [node-red-contrib-cron-plus](https://flows.nodered.org/node/node-red-contrib-cron-plus) to run the binary sensor schedules.
 
@@ -145,7 +146,7 @@ In full detail:
 
 There is no way to overcome this without reducing the size of the array. The error messages *are advisory* but can be prevented by adding the following to your Home Assistant configuration file. This prevents the Recorder from attempting to save this particular sensor.
 
-```
+```yaml
 recorder:
   exclude:
     entities:
@@ -341,12 +342,12 @@ The provided variables are mostly held in the sensor *attributes*, and these can
 
 As an example, the main Agile tariff **sensor.octopus_agile_prices** can provide a display of the current and next prices. The card shown here is a standard entities card, with the YAML configuration as given below.
 
-![agile entities](/images/agile_entities.png)
+![agile entities](/images/agile-entities.png)
 
 <details>
 <summary> Entity card YAML configuration </summary>
 
-```
+```yaml
 type: entities
 entities:
   - entity: sensor.octopus_agile_prices
@@ -392,6 +393,7 @@ title: Octopus Agile
 show_header_toggle: false
 state_color: false
 ```
+
 </details>
 
 ### Tables
@@ -405,11 +407,11 @@ Every sensor provides an *array* of values, and one of the better ways to displa
 
 The Agile Tariff array is a good example of what can be shown. This table has been coded to show the timestamp in *local time* (so BST in summer) and to colour-highlight import prices based on a set value, as well as only showing the remaining table going forward from the current active period.
 
-![agile tariff as a table](/images/agile_import_table.png)
+![agile tariff as a table](/images/agile-import-table.png)
 
 The custom flex-table-card requires a configuration to achieve this, provided as shown below. Note the use of a hidden column in order to select only the future periods.
 
-```
+```yaml
 type: custom:flex-table-card
 strict: true
 title: Octopus Agile Rates
@@ -450,11 +452,11 @@ columns:
 
 Here I display the best-price period sequences from **sensor.octopus_agile_sequence_table**. This table includes both the import and export periods, and now includes the 'today' set as well as 'tomorrow'. The card shows periods that relate to 'today' using `*` and the set from 'yesterday' or 'tomorrow' with `-` and `+` respectively. The 'D' column is driven by the current timestamp, so a set showing `* +` will change to show `- *` over midnight, and then revert to `* +` at the next API call update.
 
-![best price periods table](/images/best_periods_table.png)
+![best price periods table](/images/best-periods-table.png)
 
 The necessary configuration settings are given below.
 
-```
+```yaml
 type: custom:flex-table-card
 title: Octopus Agile Period
 entities:
@@ -501,17 +503,19 @@ columns:
 <details>
 <summary> Binary Sensor - schedule table </summary>
 
-![binary schedule table](/images/binary_schedule_table.png)
+![binary schedule table](/images/binary-schedule-table.png)
 
 This table is formed from the cron-plus dynamic schedules, written as an array to context store following the daily API call update, which is then read back into the sensor attribute at each schedule or update trigger. It is therefore an *historic* record of the actual schedules held in the cron-plus node.
 
 This table can hold schedules that have expired (used and not active in the cron-plus node) as well as a record of schedules that have been used (now in the past). To mark this, the table shows blank for cron-plus expired (not active) schedules, a `-` for time-expired schedules, a `>` for a currently active schedule, and `+` for future schedules.
 
-Each schedule in the array record is marked with a full event ID, including the year-month-day and the position within the list for the day. In the example shown, just the `1/4` part is shown.
+![binary sensor two days](/images/binary-schedule-two-days.png)
+
+Each schedule in the array record is marked with a full event ID, including the year-month-day and the position within the list for the day. In the example shown, just the `3/3` part is shown for the last unused schedule for 'today', and `1/6` through to `6/6` for the schedules for 'tomorrow', following the daily API call update.
 
 The configuration code required for this table is given below.
 
-```
+```yaml
 type: custom:flex-table-card
 title: Octopus Agile Binary Switch Schedule
 entities:
@@ -551,7 +555,7 @@ columns:
 
 I use the custom [apexcharts-card](https://github.com/RomRider/apexcharts-card) to display the tariff prices. This requires several graph configuration settings as well as data generator code to get the display I want. The graph shows the Agile import price and export price, over a complete 48 hour period of 'today' and 'tomorrow', with the best-price periods also given, as well as annotations for peak and off-peak (Flux) periods and standard variable-tariff prices.
 
-![agile tariff graph](/images/agile_graph.png)
+![agile tariff graph](/images/agile-graph.png)
 
 <details>
 <summary> Agile tariff graph configuration </summary>
@@ -567,7 +571,7 @@ Additional annotations are added to cover the Octopus Flux periods of 02:00 - 05
 
 Configuration code is given below:
 
-```
+```yaml
 type: custom:apexcharts-card
 header:
   show: true

@@ -9,5 +9,10 @@
         "upto",
         "xaxis",
         "yaxis"
-    ]
+    ],
+    "markdownlint.config": {
+        "MD033": {
+            "allowed_elements": ["details", "summary"]
+        }
+    }
 }
