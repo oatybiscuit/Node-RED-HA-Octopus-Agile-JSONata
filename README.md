@@ -20,6 +20,7 @@ This flow will trigger once every day to:
 
 - Read Octopus agile *import* and also agile *export* tariffs for the most recent 48 hours (96 records)
   - merge both import and export tariffs into one array
+  - add local time (DST aware) to the provided UTC timestamps
   - save this tariff array to flow context
   - provide an HA sensor with the current and next prices, updated every half hour
   - provide the full tariff array in a sensor attribute
@@ -66,7 +67,9 @@ The API call I am currently using is:
 
  `https://api.octopus.energy/v1/products/AGILE-22-08-31/electricity-tariffs/E-1R-AGILE-22-08-31-L/standard-unit-rates/?page_size=96`
 
-The key elements in this are the tariff name **AGILE-22-08-31** which is the most recent offering. Other Agile tariff products are available. The **L** is for *my* region (South-West) here in the UK. The [regions are explained in detail here](https://www.energy-stats.uk/dno-region-codes-explained/)!
+The key elements in this are the tariff name **AGILE-22-08-31** which is the product I am using. Other Agile tariff products are available. The **L** is for *my* region (South-West) here in the UK. The [regions are explained in detail here](https://www.energy-stats.uk/dno-region-codes-explained/)!
+
+A great place to find all the Agile import products and regions, and to check that your settings are generating the correct price, is the [agileprices.co.uk website](https://agileprices.co.uk/?tariff=AGILE-22-08-31&region=L)
 
 Every day, reliably around 16:00 local time, Octopus publish the next set of records by adding to the end of the tariff file. The records are for each 30 minute period, starting at the hour and the half-hour. Thus the file grows by 48 records every day. Tariffs are published using UTC time only. They are priced on the European market, so issued from CET midnight, and therefore run from 23:00 today to 23:00 tomorrow UK time. For the sake of my sanity, each daily set will be called 'today' and 'tomorrow', with the 'tomorrow' set including the two records 23:00-23:30 and 23:30-00:00 from today.
 
@@ -74,23 +77,23 @@ Every day, reliably around 16:00 local time, Octopus publish the next set of rec
 
 ### Daily and half-hourly updates
 
-Every half hour (on the hour and at 30 minutes past) the current tariff price will be fetched from the context tariff array and presented in the Home Assistant sensor. The flow will count the *remaining* records in the array at each update, and when less than 10 will initiate new API calls. Where tariff updates are delayed, this means that the flow will continue regularly until a successful read occurs.
+Every half hour (on the hour and at 30 minutes past) the current tariff price will be fetched from the context tariff array and presented in the Home Assistant sensor. The flow will count the *remaining* records in the array at each update, and when less than 10 will initiate new API calls. Where tariff updates are delayed, this means that the flow will continue to poll the API regularly until a successful read occurs.
 
-At each daily update, the set of best price periods, contiguous best periods, and the next binary sensor schedules are re-calculated. Although these new calculations will be for the *next* day, any pending existing periods and binary schedules will be retained.
+At each daily update, the set of best price periods, contiguous best periods, and the next binary sensor schedules are re-calculated. Although these new calculations will only be based on the figures for the *next* day, any pending existing periods and binary schedules from *today* will be retained.
 
 </details>
 
 ## Installing the flow
 
-As is standard, the Node-RED flow is contained within a JSON file. The file contents can be copied, and imported using the usual Node-RED import from clipboard facility.
+As is standard, the Node-RED flow is contained within a JSON file. The file contents can be copied, and imported using the usual Node-RED import from clipboard facility, or loaded directly from file.
 
 > [!TIP]
-> If you are updating from an earlier version, then I suggest that you disable all the flow entity sensor nodes and their corresponding sensor configuration nodes first! This 'shuts down' the old flow and reduces the risk of potential conflict! You may well see warning messages that you are importing nodes that already exist!
+> If you are updating from an earlier version, may I suggest that you disable all the flow entity sensor nodes and their corresponding sensor configuration nodes first! This 'shuts down' the old flow and reduces the risk of potential conflict! You may well see warning messages that you are importing nodes that already exist!
 
 <details>
 <summary> Installing the Node-RED code </summary>
 
-> To further avoid potential issues with an update, it can be worth taking a full backup of your existing flow, disabling the sensor and sensor-configuration nodes, redeploying and restarting Home Assistant and Node-RED, so as to remove the existing entity registrations in Home Assistant first. Then deleting the existing flow entirely before import, so as to prevent duplication of the sensor or configuration nodes and the problems this can generate.
+> To avoid potential issues with an update, it may be worth taking a full backup of your existing flow, disabling the sensor and sensor-configuration nodes, redeploying and restarting Home Assistant and Node-RED, so as to remove the existing entity registrations in Home Assistant first. Then deleting the existing flow entirely before importing the update, so as to prevent duplication of the sensor or configuration nodes and the problems this can sometimes generate.
 
 - Save the Node-RED flow (see the release file). In Node-RED go to the hamburger menu, select ‘import’, and import the JSON flow file.
 
@@ -225,7 +228,7 @@ The period position will be 'only' for single isolated periods, and 'start', the
 
 Holds an object with arrays for import, export, and both with the best concurrent periods, and fields for 'today' and 'tomorrow'.
 
-The best 15 sampled periods are extracted to provide just *consecutive* time-blocks, thereby reducing the number of on-off switching required. Each block contains:
+The best 15 sampled periods are extracted to provide just *consecutive* time-blocks of two or more periods, thereby reducing the instances of on-off switching required. Each block contains:
 
 - mode (import / export)
 - original best period sample size (15)
@@ -243,7 +246,7 @@ The best 15 sampled periods are extracted to provide just *consecutive* time-blo
 
 #### OctAgileInBin
 
-At each API update, a reduced selection of 10 of the 15 best periods are taken from the import best periods array and used 'as is' without blocking.
+At each API update, a further reduced selection of 10 of the 15 best periods are taken from the import best periods array and used 'as is' without blocking.
 
 This reduced array is checked for concurrent periods, and a minimal set of on and off time schedules are created. For a selection of 10 half-hour periods, this will provide the lowest import cost for five hours during a set tariff 'day'.
 
@@ -290,9 +293,9 @@ Attribute fields hold:
 - an array of the *import* periods (as above)
 - an array containing *both* import and export periods (as above)
 - the bid-offer spread value, as the difference between the lowest import period average price 'tomorrow' and the highest export period average price 'tomorrow'
-- the year-month-date reference for 'today' and for 'tomorrow'
+- the year-month-day reference for 'today' and for 'tomorrow'
 
-This sensor is updated only when the API calls update the tariff array, which should be once per day. Note that, since the sequence array can continue to hold future periods for 'today' as well as 'tomorrow' after update, the state value count applies *only* to the most recent day-set.
+This sensor is updated only when the API calls update the tariff array, which should be once per day. Note that, since the sequence array can continue to hold any remaining future periods for 'today' as well as new ones for 'tomorrow' after update, the state value count applies *only* to the most recent day-set.
 
 </details>
 
@@ -311,7 +314,7 @@ This sensor is updated at each schedule 'on' or 'off' trigger time, and *also* a
 
 Attribute fields will hold:
 
-- the event reference "20240203-1/2" combining the year-month-day with the event out of sequence total
+- the event reference "20240203-1/2" combining the year-month-day with the event out-of sequence total
 - time on and time off as ISO timestamps
 - switching period duration in minutes
 - average price over the period
@@ -321,7 +324,7 @@ The *event* attribute fields are only set for each *schedule* trigger. These val
 
 The *array* attribute field is set for any Node-RED restart, flow update, or schedule trigger, and will contain all of the current dynamic schedules held in the cron-plus node.
 
-> The cron-plus node is set for *persistent* dynamic schedules, so these are saved to file and recovered after a Node-RED restart. The dynamic schedules are normally only updated *once* each day when the API call updates. At this point, used and expired schedules are first deleted from the node, then the newly created schedules for the *next* day are added, then the schedule array is read and saved to context. At any *schedule trigger*, the saved schedule array is read back from context for the sensor attribute. The sensor array may therefore contain a mix of expired, current, and future schedules.
+> The cron-plus node is set for *persistent* dynamic schedules, so these are saved to file and recovered after a Node-RED restart. The dynamic schedules are normally only updated *once* each day when the API call updates. At this point, used and expired schedules are first deleted from the node, then the newly created schedules for the *next* day are added, then the schedule array is read and saved to context. At any *schedule trigger*, the saved schedule array is read back from context (not from the node) for the sensor attribute. The sensor array may therefore contain a mix of now expired, current, and future schedules.
 
 </details>
 
@@ -332,13 +335,13 @@ The *array* attribute field is set for any Node-RED restart, flow update, or sch
 
 Where possible flow parameters are exposed in easy to change settings, in the Change node just before the appropriate JSONata code. The 15 best sample size, and the 10 binary sensor sub-sample size can both be easily changed.
 
-The context store read and writes are all performed in Change nodes. This facilitates more easily selecting a different store to 'default' if you have multiple context stores.
+The context store read and writes are all performed in Change nodes. This facilitates more easily selecting a different store than 'default' if you have multiple context stores and wish to make any of the context variables persistent.
 
 ## Display
 
 ### Sensor entities
 
-The provided variables are mostly held in the sensor *attributes*, and these can be extracted within Home Assistant using appropriate template functions and configuration settings.
+The provided variables are mostly held in the sensor *attributes*, and these can be extracted within Home Assistant using appropriate template functions and configuration settings. Attributes are used for passing the arrays, out of necessity, however the flow could easily be modified to add further entity sensors, should you prefer to pass attributes as single entities.
 
 As an example, the main Agile tariff **sensor.octopus_agile_prices** can provide a display of the current and next prices. The card shown here is a standard entities card, with the YAML configuration as given below.
 
@@ -409,7 +412,7 @@ The Agile Tariff array is a good example of what can be shown. This table has be
 
 ![agile tariff as a table](/images/agile-import-table.png)
 
-The custom flex-table-card requires a configuration to achieve this, provided as shown below. Note the use of a hidden column in order to select only the future periods.
+The custom flex-table-card requires a configuration to achieve this, provided as shown below. Note the use of a hidden column and the 'strict' setting in order to select only the future periods.
 
 ```yaml
 type: custom:flex-table-card
@@ -553,7 +556,7 @@ columns:
 
 ### Graphs
 
-I use the custom [apexcharts-card](https://github.com/RomRider/apexcharts-card) to display the tariff prices. This requires several graph configuration settings as well as data generator code to get the display I want. The graph shows the Agile import price and export price, over a complete 48 hour period of 'today' and 'tomorrow', with the best-price periods also given, as well as annotations for peak and off-peak (Flux) periods and standard variable-tariff prices.
+I use the custom [apexcharts-card](https://github.com/RomRider/apexcharts-card) to display the tariff prices. This requires several graph configuration settings as well as data generator code to get the display I want. The graph shows the Agile import price and export price, over a complete 48 hour period of 'today' and 'tomorrow', with the best-price periods also given, as well as annotations for peak and off-peak periods (based on Octopus Flux) and the current offered standard variable-tariff prices for my region.
 
 ![agile tariff graph](/images/agile-graph.png)
 
