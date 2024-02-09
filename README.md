@@ -1,10 +1,15 @@
 # Node-RED-HA-Octopus-Agile-JSONata
 
-[![License: MIT](https://img.shields.io/github/license/oatybiscuit/node-red-ha-octopus-agile-jsonata)](LICENSE.md)
+[![GitHub Release](https://img.shields.io/github/v/release/oatybiscuit/Node-RED-HA-Octopus-Agile-JSONata)](https://github.com/oatybiscuit/Node-RED-HA-Octopus-Agile-JSONata/releases)
+![GitHub Downloads (all assets, latest release)](https://img.shields.io/github/downloads/oatybiscuit/node-red-ha-octopus-agile-jsonata/latest/total)
+[![License: MIT](https://img.shields.io/github/license/oatybiscuit/node-red-ha-octopus-agile-jsonata)](/LICENSE)
 
-A **Node-RED** flow to read, process, and store into context variables, **Octopus Agile Tariff Prices**
+[![Node RED](https://img.shields.io/badge/Node--RED-8f0000)](https://nodered.org/)
+[![JSONata](https://img.shields.io/badge/JSONata-285154)](https://jsonata.org/)
+[![Octopus Agile](https://img.shields.io/badge/Octopus_Agile-f050f8)](https://octopus.energy/help-and-faqs/articles/what-is-agile-octopus-and-how-do-i-join/)
+[![Home Assistant](https://img.shields.io/badge/Home_Assistant-038fc7)](https://www.home-assistant.io/)
 
-using **JSONata**. Ability to create sensors in **Home Assistant** for agile prices, best periods, and a binary switch, with potential to use and display these in graph and table format.
+A **Node-RED** flow to read, process, and store into context variables, **Octopus Agile Tariff Prices** using **JSONata**. Ability to create sensors in **Home Assistant** for agile prices, best periods, and a binary switch, with potential to use and display these in graph and table format.
 
 ![node-red-flow](/images/NodeRedFlow20240201.png)
 
