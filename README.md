@@ -448,7 +448,41 @@ columns:
       else if (val<25) cr="f0f0a0";
       '<div style="background-color: #' + cr + ';">' + val + '</div>';
     name: Import
+```
 
+The colours shown above are hard coded and work against a standard light theme, however for dark themes where the text colour turns white, either the text needs to be forced to black, or a different colour set is required. As an example the following uses standard HTML named colours for both the background and the text, with each colour chosen and tested to achieve a contrast ratio close to 4.5 or better. These card settings are just examples to show what can be achieved, and each user should adjust the colour set according to their own preference.
+
+![agile tariff table different colours](/images/agile-import-table-2.png)
+
+Configuration settings are as follows:
+
+```yaml
+type: custom:flex-table-card
+strict: true
+title: Octopus Agile Rates
+entities:
+  include: sensor.octopus_agile_prices
+columns:
+  - data: array
+    modify: >-
+      (new Date(x.from)).toLocaleString("en-GB", {day:"2-digit", month:"short",
+      hour:"2-digit", minute:"2-digit", timeZoneName:"short"})
+    name: Start Time (local)
+  - data: array
+    modify: |-
+      let disp=(new Date(x.from) > new Date());
+      if (disp) 'yes';
+    name: TEST
+    hidden: true
+  - data: array
+    modify: x.export
+    name: Export
+  - data: array
+    modify: >-
+      let val=x.import; let cr="mediumvioletred"; if   (val<15) cr="teal"; else
+      if (val<25) cr="royalblue"; '<div style="background-color: ' + cr + ';
+      color: lemonchiffon">' + val + '</div>';
+    name: Import
 ```
 
 </details>
