@@ -11,10 +11,22 @@
 
 A **Node-RED** flow to read, process, and store into context variables, **Octopus Agile Tariff Prices** using **JSONata**. Ability to create sensors in **Home Assistant** for agile prices, best periods, and a binary switch, with potential to use and display these in graph and table format.
 
-![node-red-flow](/images/NodeRedFlow20240201.png)
+![node-red-flow](/images/NodeRedFlow20250123.png)
 
 >[!NOTE]
 > I don't use Octopus Agile myself, so this was formed out of personal interest rather than necessity. It does work, but it is a *learning example* rather than active home automation forged in the white heat of real need.
+
+## Updates
+
+### January 2025
+
+Although this has run almost entirely without issue, at the new year it became apparent that Octopus Energy had removed at least one Agile product. In reality, Octopus has only one import/export 'live and available' Agile product on the market at any one time. When older products eventually reach 'end of life' the tariff array update may come to an abrupt stop.
+
+This update moves to *parameterized* settings, permits the 'export' tariff to be *optional*, and adds some general improvements to the way the API call is processed, with better error checking to prevent the array from being updated until the returned import and export arrays match and are correct.
+
+At the API call, detailed *update information* is now returned and stored into a new context variable. Also, on a weekly basis, the Octopus live Agile *product list* is returned and compared with the current product in use. Both current and live products are saved to another context variable. This provides improved debugging information for use in cases where the array does not update by 22:00 each day, and offers advanced warning of 'end of life' on the current product(s) in use.
+
+**If updating from earlier versions**, note that the Agile product(s) used must now be defined in the parameter JSON object in the first **Tariff** node.
 
 ## What this Node-RED flow does
 
@@ -23,12 +35,14 @@ A **Node-RED** flow to read, process, and store into context variables, **Octopu
 
 This flow will trigger once every day to:
 
-- Read Octopus agile *import* and also agile *export* tariffs for the most recent 48 hours (96 records)
-  - merge both import and export tariffs into one array
+- Read Octopus agile *import* and optionally agile *export* tariffs for the most recent 48 hours (96 records)
+  - merge both import and the export tariffs into one array (with tariff value '0' if export tariff is not requested)
   - add local time (DST aware) to the provided UTC timestamps
-  - save this tariff array to flow context
+  - save this combined tariff array to flow context
+  - save the array update outcome (debug) details to flow context
   - provide an HA sensor with the current and next prices, updated every half hour
   - provide the full tariff array in a sensor attribute
+  - provide weekly updated product and tariff information to flow context
 
 - Process the tariff array to obtain the *best price periods* for tomorrow
   - save 15 of the best price records into flow context
@@ -53,7 +67,7 @@ This flow will trigger once every day to:
 This is a **Node-RED** flow, written to run in Node-RED alongside Home Assistant. You will need:
 
 - **Node-RED**, ideally running as a [Home Assistant add-on](https://github.com/hassio-addons/addon-node-red#readme)
-- The API call *references* for your own or chosen Agile tariff and pricing area
+- The Agile Product *references* for your own or chosen Agile *product*, *tariff*, and pricing *area*
 - The [WebSocket nodes](https://github.com/zachowj/node-red-contrib-home-assistant-websocket) installed and their HA server configuration working correctly
 - Additional palette nodes for the scheduler - [cron-plus](https://flows.nodered.org/node/node-red-contrib-cron-plus)
 
@@ -68,17 +82,17 @@ This is a **Node-RED** flow, written to run in Node-RED alongside Home Assistant
 
 You can find out more about [Octopus Energy API Documentation - Agile](https://developer.octopus.energy/docs/api/#agile-octopus) in their documentation.
 
-The API call I am currently using is:
+The API call used is of the form:
 
  `https://api.octopus.energy/v1/products/AGILE-22-08-31/electricity-tariffs/E-1R-AGILE-22-08-31-L/standard-unit-rates/?page_size=96`
 
-The key elements in this are the tariff name **AGILE-22-08-31** which is the product I am using. Other Agile tariff products are available. The **L** is for *my* region (South-West) here in the UK. The [regions are explained in detail here](https://www.energy-stats.uk/dno-region-codes-explained/)!
+The key elements in this are the agile *product* name **AGILE-22-08-31** and the *tariff* name **E-1R-AGILE-22-08-21**. Other Agile tariff products are available. The **L** is for *my* region (South-West) here in the UK. The [regions are explained in detail here](https://www.energy-stats.uk/dno-region-codes-explained/)! You wil need to identify your own **product** and **tariff**, or select a current Octopus Agile offering. Note that the product you use will need to be updated if your account product changes. *If you have access to your account-tariff details via other integrations, then you may be able to automate a look-up so as to provide notification should the product used here no longer aligns with your account product.*
 
 A great place to find all the Agile import products and regions, and to check that your settings are generating the correct price, is the [agileprices.co.uk website](https://agileprices.co.uk/?tariff=AGILE-22-08-31&region=L)
 
-Every day, reliably around 16:00 local time, Octopus publish the next set of records by adding to the end of the tariff file. The records are for each 30 minute period, starting at the hour and the half-hour. Thus the file grows by 48 records every day. Tariffs are published using UTC time only. They are priced on the European market, so issued from CET midnight, and therefore run from 23:00 today to 23:00 tomorrow UK time. For the sake of my sanity, each daily set will be called 'today' and 'tomorrow', with the 'tomorrow' set including the two records 23:00-23:30 and 23:30-00:00 from today.
+Every day, usually reliably around 16:00 local time but certainly before 22:00, Octopus publish the next set of records by adding to the end of the tariff file. The records are for each 30 minute period, starting at the hour and the half-hour. Thus the file grows by 48 records every day. Tariffs are published using UTC time only. They are priced on the European market, so issued from CET midnight, and therefore run from 23:00 today to 23:00 tomorrow UK time. For the sake of my sanity, each daily set will be called 'today' and 'tomorrow', with the 'tomorrow' set including the two records 23:00-23:30 and 23:30-00:00 from today.
 
-> The flow maintains only the most recently published 96 records - hence this should always be the full set of 'yesterday' and 'today' up to around 16:00, and the full set for 'today' and 'tomorrow' after 16:00.
+> The flow maintains only the most recently published 96 records - hence this should always be the full set of 'yesterday' and 'today' up to the tariff update at around 16:00, and the full set for 'today' and 'tomorrow' after the update at around 16:00.
 
 ### Daily and half-hourly updates
 
@@ -93,14 +107,14 @@ At each daily update, the set of best price periods, contiguous best periods, an
 As is standard, the Node-RED flow is contained within a JSON file. The file contents can be copied, and imported using the usual Node-RED import from clipboard facility, or loaded directly from file.
 
 > [!TIP]
-> If you are updating from an earlier version, may I suggest that you disable all the flow entity sensor nodes and their corresponding sensor configuration nodes first! This 'shuts down' the old flow and reduces the risk of potential conflict! You may well see warning messages that you are importing nodes that already exist!
+> If you are updating from an earlier version:- Disable *all* the inject trigger nodes, *all* the flow entity sensor nodes *and* their corresponding sensor configuration nodes *and redeploy* first! This 'shuts down' the old flow (which you can then keep as a backup) and reduces the risk of potential duplication of existing entity sensors! You can also manually delete all the context variables as these will be recreated afresh with the new flow. You may well see warning messages that you are importing nodes that already exist!
 
 <details>
 <summary> Installing the Node-RED code </summary>
 
-> To avoid potential issues with an update, it may be worth taking a full backup of your existing flow, disabling the sensor and sensor-configuration nodes, redeploying and restarting Home Assistant and Node-RED, so as to remove the existing entity registrations in Home Assistant first. Then deleting the existing flow entirely before importing the update, so as to prevent duplication of the sensor or configuration nodes and the problems this can sometimes generate.
+> To avoid potential issues with an update, disable the inject, sensor and sensor-configuration nodes and redeploy, so as to first remove the existing entity registrations in Home Assistant. You can delete the existing flow entirely before importing the update, however as long as the Home Assistant sensor nodes are fully disabled the existing flow can usually remain without issue (you may just see a warning that the nodes you are importing already exist).
 
-- Save the Node-RED flow (see the release file). In Node-RED go to the hamburger menu, select ‘import’, and import the JSON flow file.
+- Save the Node-RED flow from here (see the release file). In Node-RED go to the hamburger menu, select ‘import’, and import the JSON flow file.
 
 - Add any missing nodes to your palette. You will need [node-red-contrib-cron-plus](https://flows.nodered.org/node/node-red-contrib-cron-plus) to run the binary sensor schedules.
 
@@ -110,12 +124,35 @@ As is standard, the Node-RED flow is contained within a JSON file. The file cont
 
 ### Setting your parameters
 
-**The API calls in the flow need to be hard-coded for your particular product and region.**
+**The API calls in the flow use product parameters which need setting to *your* particular product, tariff, and region.**
 
 <details>
 <summary> Product and region setting </summary>
 
-If you are using Octopus Agile, then you can obtain your product code and region from your current account. If, like me, you are using this for interest only, then you need to search the Octopus Agile products for something that suits, and check your region using the link above. Make the necessary changes and test that the flow works by using the Inject node, and looking at the flow context variables. A working flow will produce an *OctAgileTariff* variable in flow context containing a 96-record array.
+The parameters are stored in the **Tariff** node, inside a JSON object. The **mode** field can be 'import' or 'export' or 'both'. For each of import and (optionally) export, the **product** and **tariff** names are required. Usually the tariff name will be "E-1R-" *product* "-X" where X is your specific region.
+
+```javascript
+{
+    "region": "L",
+    "mode": "both",
+    "import": {
+        "product": "AGILE-22-08-31",
+        "tariff": "E-1R-AGILE-22-08-31-L"
+    },
+    "export": {
+        "product": "AGILE-OUTGOING-19-05-13",
+        "tariff": "E-1R-AGILE-OUTGOING-19-05-13-L"
+    }
+}
+```
+
+The import tariff prices will be obtained if mode is either 'import' or 'both', and the export prices obtained for 'export' or 'both'. The array will always contain both 'import' and 'export' price values, however the price will be set to zero (0) for an *unselected* tariff.
+
+If you are using Octopus Agile, then you can obtain your product code and region from your current account or bill.
+
+If, like me, you are using this for interest only, then you need to search the Octopus Agile products for something that suits, and check your region using the link above. The flow will also populate a product context variable, which contains the lastest Agile product offerings, so one of these can be used.
+
+Make the necessary changes, manually delete the OctProducts context varible (to force this to be updated) and test that the flow works by using the Inject node, and looking at the flow context variables. A working flow will produce an *OctAgileTariff* variable in flow context containing a 96-record array, and product details for your chosen tariff.
 
 </details>
 
@@ -163,7 +200,11 @@ recorder:
 
 ## Using this Node-RED flow
 
-The flow should run without issue. Octopus Agile updates have been reliable, with only a short period of late updates, and a brief issue with corrupt (duplicate) data records. The flow here has no error checking and recovery - if the API calls fail then they will be repeated hourly until they succeed. If the Octopus Agile Tariff data is corrupt, then there is not much we can do about it (and you can always check on one of the many other websites providing Agile Tariff details to see if they are having issues too...)
+The flow should run without issue. Octopus Agile tariff price updates have been very reliable, with only a short period of late updates, and a brief issue with corrupt (duplicate) data records. The flow has error checking but no recovery - if the API calls fail then they will be repeated hourly until they succeed. Error checking will look to see that the API call has returned 96 records, covering a full 48 hours. The array will not be updated until the return (both import, and export if requested) is correct, complete, and extends into tomorrow.
+
+Note that, where only the import (or the export) tariff is requested, the other value will still remain in the array but will be set to zero for all records.
+
+If the Octopus Agile Tariff data is corrupt or fails to update after 23:00, then there is not much we can do about it (and you can always check on one of the many other websites providing Agile Tariff details to see if they are having issues too...)
 
 ### Daylight Saving Time (DST)
 
@@ -204,13 +245,51 @@ Holds an *array* of **96 periods**, each period being an *object* with fields fo
 
 - period from and to timestamps in UTC
 - import price (inc VAT)
-- export price (inc VAT)
+- export price (inc VAT) [only if requested, otherwise this will be set to '0']
 - separate fields for date and times
 - local date and times
 - DST changing flag
 - ISO format from and to timestamps
 
 This array is updated on successful API update, and 'tomorrow' will *in effect* replace 'yesterday'.
+
+#### OctUpdate
+
+Holds an *object* with details of the most recent API update call, with fields for:
+
+- the unix timestamp of the most recent update attempted (whether successful or not)
+- import, and export success flags ['--' not requested, 'ER' array error, 'MT' returned but not yet updated for tomorrow, 'OK' - all correct]
+- match, will be false *if* both import and export requested *and* their periods do not match (true otherwise)
+- success, which will be true only if the one or both requests are correct and both update into tomorrow
+- the array from and upto timestamps (span), and separate import and export array end timestamps
+- hours left in the stored array, hours available in new update (remaining maximum time for either import/export) and hours left in new update (minimum of import/export array remaining)
+- product checking for import and export; will show "not the latest product" if the product in use is not included in the latest Agile Product list
+
+#### OctProducts
+
+Holds details created at the first API call (if OctProducts missing in context) and then updated once each week (default Sunday). Calls the product and tariff API in Octopus to populate details on the import and export products being used, as well as an array of the latest Agile products available.
+
+The import/export product given as the API calling parameter will each show with the respective product:
+
+- code
+- name
+- term (months)
+- starting date and ending date (end date will be null if no end date set)
+- sale flag: "no-end" if ending date is null, "sunset" if ending date set, "closed" if the ending date is now in the past
+- brand
+- available regions list
+- full region tariff code used
+- standing charge and unit rate for this product and region (at the *exact* time of the update, so of little practical use for Agile products)
+
+The *latest product list* provides all currently market-available Octopus variable-rate products that have 'Agile' in the name:
+
+- mode (import/export)
+- product code
+- product term in months
+- brand
+- start offering date
+- end offering date (will be null if there is no current end date)
+- an http link to the full product details
 
 #### OctAgileBest
 
@@ -338,7 +417,9 @@ The *array* attribute field is set for any Node-RED restart, flow update, or sch
 
 ### Flow parameters
 
-Where possible flow parameters are exposed in easy to change settings, in the Change node just before the appropriate JSONata code. The 15 best sample size, and the 10 binary sensor sub-sample size can both be easily changed.
+Product tariff and area settings are in the very first Tariff node in a JSON object.
+
+Where possible other flow parameters are exposed in easy to change settings, in the Change node just before the appropriate JSONata code. The 15 best sample size, and the 10 binary sensor sub-sample size can both be easily changed.
 
 The context store read and writes are all performed in Change nodes. This facilitates more easily selecting a different store than 'default' if you have multiple context stores and wish to make any of the context variables persistent.
 
