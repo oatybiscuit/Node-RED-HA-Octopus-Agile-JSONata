@@ -265,6 +265,8 @@ Holds an *object* with details of the most recent API update call, with fields f
 - hours left in the stored array, hours available in new update (remaining maximum time for either import/export) and hours left in new update (minimum of import/export array remaining)
 - product checking for import and export; will show "not the latest product" if the product in use is not included in the latest Agile Product list
 
+Note that, since OctUpdate is constructed and saved *before* the OctProducts information is updated, OctUpdate will have incomplete or incorrect product checking details after the very first call, or whenever the called product is modified.
+
 #### OctProducts
 
 Holds details created at the first API call (if OctProducts missing in context) and then updated once each week (default Sunday). Calls the product and tariff API in Octopus to populate details on the import and export products being used, as well as an array of the latest Agile products available.
